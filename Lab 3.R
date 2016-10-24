@@ -28,7 +28,7 @@ sqldf("select pmid from nodes join links on nodes.pmid = links.cited where links
 
 #2. What is the most cited paper in PubMed? Provide title, year and journal
 mostCited <- tail(names(sort(table(links$cited))), 1)
-mostCitedPaper <- fn$sqldf('select pmid, title from nodes where nodes.pmid = $mostCited')
+mostCitedPaper <- fn$sqldf('select pmid, title, date_pub from nodes where nodes.pmid = $mostCited')
 #Answer:Basic local alignment search tool
 
 #3. What is the most cited journal in PubMed?
