@@ -19,7 +19,6 @@ links <- read.table("pubmed_links_INFO370.txt", header = TRUE, sep = "", fill=FA
 #Set fill=TRUE because there are numerous rows with less than five entires, line 1732238+1 (because of removed header) is one example
 nodes <- read.table("pubmed_nodes_INFO370.txt", header = TRUE, sep="\t", quote="", na.strings = "NULL", fill=TRUE, strip.white=TRUE, comment="") #Should be 5538323
 nodes$pmid = as.integer(as.character(nodes$pmid))
-nodes$date_pub = strftime(as.character(nodes$date_pub),  format = "%Y-%m-%d", tz = "")
 
 #1. What is the correct ID in the links table?
 head(links, 1)
@@ -28,7 +27,7 @@ sqldf("select pmid from nodes join links on nodes.pmid = links.cited where links
 
 #2. What is the most cited paper in PubMed? Provide title, year and journal
 mostCited <- tail(names(sort(table(links$cited))), 1)
-mostCitedPaper <- fn$sqldf('select pmid, title, date_pub from nodes where nodes.pmid = $mostCited')
+mostCitedPaper <- fn$sqldf('select pmid, title from nodes where nodes.pmid = $mostCited')
 #Answer:Basic local alignment search tool
 
 #3. What is the most cited journal in PubMed?
@@ -44,19 +43,25 @@ mostCitedJournal <- sqldf("SELECT journal, COUNT(*) as NumCited
 #Answer: PLOS One
 
 #4. Show histogram of citations by year
-citations <- sqldf("SELECT l.citing, n.date_pub
+citations <- sqldf("SELECT l.cited, n.date_pub
                    FROM links l
-                   JOIN nodes as n on n.pmid = l.citing
-                   WHERE n.pmid = l.citing")
+                   JOIN nodes as n on n.pmid = l.cited
+                   WHERE n.pmid = l.cited")
 citationYear <- str_sub(as.character(citations$date_pub), start = -4)
-citationYear = as.integer(citationYear)
-hist(citationYear)
+citationYear <- as.numeric(citationYear)
+citationYear <- citationYear[!is.na(citationYear)]
+hist(citationYear, main = "Histogram of Citations by Year", xlim = range(1950, 2016)) #added breaks to try to make it show more values
 
 #5. Number of citations over time (Line/Bar)
-citationYearDF <- data.frame(citationYear, row.names = "year")
-citationYearGroup <- sqldf("SELECT citationYear, count(*) as freq
-                           FROM citationYearDF
-                           GROUP BY citationYear
-                           ORDER BY citationYear ASC")
+citationCiting <- sqldf("SELECT n.date_pub
+                        FROM links l
+                        JOIN nodes as n on n.pmid = l.citing")
+citationCiting$date_pub <- str_sub(as.character(citationCiting$date_pub), start = -4)
+citationCiting$date_pub <- as.numeric(citationCiting$date_pub)
+
+citationYearGroup <- sqldf("SELECT date_pub, count(*) as freq
+                           FROM citationCiting
+                           GROUP BY date_pub
+                           ORDER BY date_pub ASC")
 citationYearGroup <- citationYearGroup[complete.cases(citationYearGroup), ]
-plot(citationYearGroup$citationYear, cumsum(citationYearGroup$freq), type = "l")
+plot(citationYearGroup$date_pub, cumsum(citationYearGroup$freq), type = "l")
